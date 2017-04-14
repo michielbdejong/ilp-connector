@@ -6,6 +6,7 @@ mock('ilp-plugin-mock', mockPlugin)
 
 const assert = require('assert')
 const routing = require('ilp-routing')
+const LiquidityCurve = routing.LiquidityCurve
 const RoutingTables = require('../src/lib/routing-tables')
 const RouteBroadcaster = require('../src/lib/route-broadcaster')
 const MessageRouter = require('../src/lib/message-router')
@@ -54,9 +55,6 @@ describe('RouteBroadcaster', function () {
       log
     })
     this.ledgers.addFromCredentialsConfig(ledgerCredentials)
-    this.ledgers.getPlugin(ledgerA).getInfo =
-    this.ledgers.getPlugin(ledgerB).getInfo =
-      function () { return {precision: 10, scale: 2} }
 
     this.tables.addLocalRoutes(this.ledgers, [{
       source_ledger: ledgerA,
@@ -135,13 +133,13 @@ describe('RouteBroadcaster', function () {
         destination_ledger: ledgerB,
         min_message_window: 1,
         source_account: ledgerA + 'mark',
-        points: [ [0.02, 0], [200, 99.99] ]
+        points: new LiquidityCurve([ [2, 0], [200, 99] ]).toBuffer().toString('base64')
       }, {
         source_ledger: ledgerA,
         destination_ledger: ledgerC,
         min_message_window: 2,
         source_account: ledgerA + 'mark',
-        points: [ [0.02, 0], [100.02, 60] ]
+        points: new LiquidityCurve([ [2, 0], [102, 60] ]).toBuffer().toString('base64')
       }
     ]
     const routesFromB = [
@@ -150,7 +148,7 @@ describe('RouteBroadcaster', function () {
         destination_ledger: ledgerA,
         min_message_window: 1,
         source_account: ledgerB + 'mark',
-        points: [ [0.005, 0], [100, 199.99] ]
+        points: new LiquidityCurve([ [0, 0], [100, 199] ]).toBuffer().toString('base64')
       }
     ]
 
@@ -159,56 +157,52 @@ describe('RouteBroadcaster', function () {
         function () {
           return {
             prefix: ledgerA,
-            connectors: [ledgerA + 'mark', ledgerA + 'mary'],
-            precision: 10,
-            scale: 2
+            connectors: [ledgerA + 'mark', ledgerA + 'mary']
           }
         }
       this.ledgers.getPlugin(ledgerB).getInfo =
         function () {
           return {
             prefix: ledgerB,
-            connectors: [ledgerB + 'mark', ledgerB + 'mary'],
-            precision: 10,
-            scale: 2
+            connectors: [ledgerB + 'mark', ledgerB + 'mary']
           }
         }
       this.ledgers.getPlugin(ledgerC).getInfo =
         function () {
           return {
             prefix: ledgerC,
-            connectors: [ledgerC + 'mark'],
-            precision: 10,
-            scale: 2
+            connectors: [ledgerC + 'mark']
           }
         }
 
       let routesFromASent, routesFromBSent
-      this.ledgers.getPlugin(ledgerA).sendMessage = function (message) {
+      this.ledgers.getPlugin(ledgerA).sendRequest = function (message) {
         assert.deepEqual(message, {
           ledger: ledgerA,
-          account: ledgerA + 'mary',
-          data:
+          to: ledgerA + 'mary',
+          custom:
           { method: 'broadcast_routes',
             data:
             { hold_down_time: 1234,
               unreachable_through_me: [],
-              new_routes: routesFromA } }
+              new_routes: routesFromA } },
+          timeout: undefined
         })
         routesFromASent = true
         return Promise.resolve(null)
       }
 
-      this.ledgers.getPlugin(ledgerB).sendMessage = function (message) {
+      this.ledgers.getPlugin(ledgerB).sendRequest = function (message) {
         assert.deepEqual(message, {
           ledger: ledgerB,
-          account: ledgerB + 'mary',
-          data:
+          to: ledgerB + 'mary',
+          custom:
           { method: 'broadcast_routes',
             data:
             { hold_down_time: 1234,
               unreachable_through_me: [],
-              new_routes: routesFromB } }
+              new_routes: routesFromB } },
+          timeout: undefined
         })
         routesFromBSent = true
         return Promise.resolve(null)
@@ -234,7 +228,7 @@ describe('RouteBroadcaster', function () {
         destination_ledger: ledgerD,
         source_account: ledgerB + 'mark',
         min_message_window: 1,
-        points: [ [0, 0], [50, 60] ]
+        points: new LiquidityCurve([ [0, 0], [50, 60] ]).toBuffer().toString('base64')
       }]
       assert.equal(this.tables.toJSON(2).length, 3)
       yield messageRouter.receiveRoutes({
@@ -266,11 +260,11 @@ describe('RouteBroadcaster', function () {
         }
 
       let routesFromASent, routesFromBSent
-      this.ledgers.getPlugin(ledgerA).sendMessage = function (message) {
+      this.ledgers.getPlugin(ledgerA).sendRequest = function (message) {
         routesFromASent = true
         return Promise.reject(new Error('something went wrong but the connector should continue anyway'))
       }
-      this.ledgers.getPlugin(ledgerB).sendMessage = function (message) {
+      this.ledgers.getPlugin(ledgerB).sendRequest = function (message) {
         routesFromBSent = true
         return Promise.resolve(null)
       }
@@ -281,7 +275,7 @@ describe('RouteBroadcaster', function () {
       assert(routesFromBSent)
     })
 
-    it('should send all routes even if plugin.sendMessage hangs', function * () {
+    it('should send all routes even if plugin.sendRequest hangs', function * () {
       this.ledgers.getPlugin(ledgerA).getInfo =
         function () {
           return { prefix: ledgerA, connectors: [ledgerA + 'mark', ledgerA + 'mary'] }
@@ -296,13 +290,13 @@ describe('RouteBroadcaster', function () {
         }
 
       let routesFromASent, routesFromBSent
-      this.ledgers.getPlugin(ledgerA).sendMessage = function (message) {
+      this.ledgers.getPlugin(ledgerA).sendRequest = function (message) {
         routesFromASent = true
         return new Promise((resolve) => {
           setTimeout(resolve, 1000000)
         })
       }
-      this.ledgers.getPlugin(ledgerB).sendMessage = function (message) {
+      this.ledgers.getPlugin(ledgerB).sendRequest = function (message) {
         routesFromBSent = true
         return Promise.resolve(null)
       }
@@ -324,7 +318,7 @@ describe('RouteBroadcaster', function () {
       assert.deepEqual(route.destinationLedger, ledgerB)
       assert.deepEqual(route.sourceAccount, ledgerA + 'mark')
       assert.deepEqual(route.destinationAccount, ledgerB + 'mark')
-      assert.deepEqual(route.getPoints(), [ [0, 0], [1000000000000, 778238680703.8209] ])
+      assert.deepEqual(route.getPoints(), [ [0, 0], [1000000000000, 778238680703] ])
     })
   })
 })

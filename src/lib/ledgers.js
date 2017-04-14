@@ -9,10 +9,12 @@ const log = logger.create('ledgers')
 
 class Ledgers {
   constructor ({ config, routingTables }) {
+    this.tables = routingTables
     this._config = config
     this._core = new ilpCore.Core({ routingTables })
     this._pairs = new TradingPairs()
     this._ledgers = new Map()
+    this._requestHandler = null
   }
 
   addFromCredentialsConfig (ledgerCredentials) {
@@ -31,10 +33,6 @@ class Ledgers {
 
   getClient (ledgerPrefix) {
     return this._core.getClient(ledgerPrefix)
-  }
-
-  quote (params) {
-    return this._core.quote(params)
   }
 
   getPairs () {
@@ -90,6 +88,9 @@ class Ledgers {
       currency: creds.currency,
       plugin: client.getPlugin()
     })
+    if (this._requestHandler) {
+      client.getPlugin().registerRequestHandler(this._requestHandler)
+    }
 
     if (tradesTo) {
       this._pairs.addPairs(tradesTo.map((e) => [creds.currency + '@' + ledgerPrefix, e]))
@@ -117,6 +118,13 @@ class Ledgers {
     this._core.removeClient(ledgerPrefix)
     this._ledgers.delete(ledgerPrefix)
     return plugin
+  }
+
+  registerRequestHandler (requestHandler) {
+    this._requestHandler = requestHandler
+    for (const client of this.getClients()) {
+      client.getPlugin().registerRequestHandler(requestHandler)
+    }
   }
 }
 

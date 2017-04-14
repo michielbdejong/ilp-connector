@@ -77,6 +77,10 @@ class RoutingTables {
       sourceLedger, destinationLedger, destinationAmount)
   }
 
+  findRoutes (sourceLedger, destinationLedger) {
+    return this.localTables.findRoutes(sourceLedger, destinationLedger)
+  }
+
   toJSON (maxPoints) {
     return this.publicTables.toJSON(maxPoints)
   }
@@ -115,8 +119,7 @@ class RoutingTables {
     const sourceScale = ledgers.getPlugin(sourceLedger).getInfo().scale
     const destinationScale = ledgers.getPlugin(destinationLedger).getInfo().scale
     if (sourceScale === destinationScale && this.isTrivialRate) return 0
-    const destinationAdjustment = destinationScale ? Math.pow(10, -destinationScale) : 0
-    return destinationAdjustment
+    return 1
   }
 }
 

@@ -28,7 +28,7 @@ function listen (config, ledgers, backend, routeBuilder, routeBroadcaster, messa
       log.error(error)
       process.exit(1)
     }
-    yield subscriptions.subscribePairs(ledgers.getCore(), config, routeBuilder, messageRouter, backend)
+    yield subscriptions.subscribePairs(ledgers.getCore(), config, routeBuilder, backend)
 
     let allLedgersConnected
     try {
@@ -114,7 +114,9 @@ function createApp (config, ledgers, backend, routeBuilder, routeBroadcaster, ro
       ledgers,
       {
         minMessageWindow: config.expiry.minMessageWindow,
-        slippage: config.slippage
+        maxHoldTime: config.expiry.maxHoldTime,
+        slippage: config.slippage,
+        quoteExpiry: config.quoteExpiry
       }
     )
   }

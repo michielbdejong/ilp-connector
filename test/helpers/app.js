@@ -46,7 +46,9 @@ exports.create = function (context) {
     ledgers,
     {
       minMessageWindow: config.expiry.minMessageWindow,
-      slippage: config.slippage
+      maxHoldTime: config.expiry.maxHoldTime,
+      slippage: config.slippage,
+      quoteExpiry: config.quoteExpiry
     }
   )
   const routeBroadcaster = new RouteBroadcaster(routingTables, backend, ledgers, {

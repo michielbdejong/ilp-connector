@@ -28,7 +28,7 @@ class MockPlugin extends EventEmitter {
     return Promise.resolve(null)
   }
 
-  sendMessage (message) {
+  sendRequest (message) {
     return Promise.resolve(null)
   }
 
@@ -61,6 +61,8 @@ class MockPlugin extends EventEmitter {
       scale: 4
     }
   }
+
+  registerRequestHandler (requestHandler) { }
 }
 
 module.exports = MockPlugin

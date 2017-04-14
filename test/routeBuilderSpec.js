@@ -53,9 +53,6 @@ describe('RouteBuilder', function () {
       routingTables: this.tables
     })
     this.ledgers.addFromCredentialsConfig(ledgerCredentials)
-    this.ledgers.getPlugin(ledgerA).getInfo =
-    this.ledgers.getPlugin(ledgerB).getInfo =
-      function () { return {precision: 10, scale: 2} }
 
     this.tables.addLocalRoutes(this.ledgers, [{
       source_ledger: ledgerA,
@@ -72,166 +69,11 @@ describe('RouteBuilder', function () {
 
     this.builder = new RouteBuilder(this.tables, this.ledgers, {
       minMessageWindow: 1,
-      slippage: 0.01
+      maxHoldTime: 10,
+      slippage: 0.01,
+      quoteExpiry: 10000
     })
     yield this.ledgers.connect()
-  })
-
-  describe('getQuote', function () {
-    beforeEach(function * () {
-      this.tables.addRoute({
-        source_ledger: ledgerB,
-        destination_ledger: ledgerC,
-        source_account: maryB,
-        min_message_window: 1,
-        points: [ [0, 0], [200, 100] ]
-      })
-    })
-
-    describe('fixed sourceAmount', function () {
-      it('Local quote should return additional info', function * () {
-        const quoteTransfer = yield this.builder.getQuote({
-          sourceAddress: aliceA,
-          destinationAddress: bobB,
-          sourceAmount: '200',
-          explain: 'true'
-        })
-        assert.deepStrictEqual(quoteTransfer, {
-          connectorAccount: markA,
-          sourceLedger: ledgerA,
-          sourceAmount: '200',
-          destinationLedger: ledgerB,
-          destinationAmount: '99',
-          sourceExpiryDuration: '6',
-          destinationExpiryDuration: '5',
-          additionalInfo: {
-            rate_info: 'someInfoAboutTheRate',
-            slippage: '1'
-          },
-          minMessageWindow: 1,
-          nextLedger: ledgerB,
-          liquidityCurve: [ [2, 0], [200, 99] ]
-        })
-      })
-      // disabled because of reduced quoting functionality for improved-route-broadcast
-      it.skip('returns a quote with slippage in the final amount', function * () {
-        const quoteTransfer = yield this.builder.getQuote({
-          sourceAddress: aliceA,
-          destinationAddress: carlC,
-          sourceAmount: '100',
-          explain: 'true'
-        })
-        assert.deepStrictEqual(quoteTransfer, {
-          connectorAccount: markA,
-          sourceLedger: ledgerA,
-          sourceAmount: '100.00',
-          destinationLedger: ledgerC,
-          destinationAmount: '24.75',
-          sourceExpiryDuration: '7',
-          destinationExpiryDuration: '5',
-          additionalInfo: { slippage: '0.25' },
-          minMessageWindow: 2,
-          nextLedger: ledgerB,
-          liquidityCurve: [ [1, 0], [200, 49.75] ]
-        })
-      })
-      // disabled because of reduced quoting functionality for improved-route-broadcast
-      it.skip('allows a specified slippage', function * () {
-        const quoteTransfer = yield this.builder.getQuote({
-          sourceAddress: aliceA,
-          destinationAddress: carlC,
-          sourceAmount: '100',
-          slippage: '0.1',
-          explain: 'true'
-        })
-        assert.deepStrictEqual(quoteTransfer, {
-          connectorAccount: markA,
-          sourceLedger: ledgerA,
-          sourceAmount: '100.00',
-          destinationLedger: ledgerC,
-          destinationAmount: '22.5',
-          sourceExpiryDuration: '7',
-          destinationExpiryDuration: '5',
-          additionalInfo: { slippage: '2.5' },
-          minMessageWindow: 2,
-          nextLedger: ledgerB,
-          liquidityCurve: [ [10, 0], [200, 47.5] ]
-        })
-      })
-    })
-
-    describe('fixed destinationAmount', function () {
-      // disabled because of reduced quoting functionality for improved-route-broadcast
-      it.skip('returns a quote with slippage in the source amount', function * () {
-        const quoteTransfer = yield this.builder.getQuote({
-          sourceAddress: aliceA,
-          destinationAddress: carlC,
-          destinationAmount: '25',
-          explain: 'true'
-        })
-        assert.deepStrictEqual(quoteTransfer, {
-          connectorAccount: markA,
-          sourceLedger: ledgerA,
-          sourceAmount: '101.00',
-          destinationLedger: ledgerC,
-          destinationAmount: '25',
-          sourceExpiryDuration: '7',
-          destinationExpiryDuration: '5',
-          additionalInfo: { slippage: '-1' },
-          minMessageWindow: 2,
-          nextLedger: ledgerB,
-          liquidityCurve: [ [1, 0], [201, 50] ]
-        })
-      })
-
-      it('throws if there is no path to the destination', function * () {
-        yield assertThrows(function * () {
-          yield this.builder.getQuote({
-            sourceAddress: aliceA,
-            destinationAddress: 'ledgerD.doraD',
-            destinationAmount: '25'
-          })
-        }.bind(this), error('No route found from: usd-ledger.alice to: ledgerD.doraD'))
-      })
-    })
-
-    describe('route with precision/scale', function () {
-      beforeEach(function * () {
-        this.tables.removeLedger(ledgerC)
-        this.tables.addRoute({
-          source_ledger: ledgerB,
-          destination_ledger: ledgerC,
-          source_account: maryB,
-          min_message_window: 1,
-          points: [ [0, 0], [200, 100] ],
-          destination_precision: 4,
-          destination_scale: 0
-        })
-      })
-      // disabled because of reduced quoting functionality for improved-route-broadcast
-      it.skip('Local quote should return additional info', function * () {
-        const quoteTransfer = yield this.builder.getQuote({
-          sourceAddress: aliceA,
-          destinationAddress: carlC,
-          sourceAmount: '100',
-          explain: 'true'
-        })
-        assert.deepStrictEqual(quoteTransfer, {
-          connectorAccount: markA,
-          sourceLedger: ledgerA,
-          sourceAmount: '100.00',
-          destinationLedger: ledgerC,
-          destinationAmount: '24', // rounded from 24.75
-          destinationPrecisionAndScale: {precision: 4, scale: 0},
-          sourceExpiryDuration: '7',
-          destinationExpiryDuration: '5',
-          additionalInfo: { slippage: '0.25' },
-          minMessageWindow: 2,
-          nextLedger: ledgerB,
-          liquidityCurve: [ [1, 0], [200, 49.75] ]
-        })
-      })
-    })
   })
 
   describe('getDestinationTransfer', function () {

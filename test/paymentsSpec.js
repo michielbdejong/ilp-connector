@@ -70,7 +70,7 @@ describe('Payments', function () {
     yield this.backend.connect(ratesResponse)
     yield this.ledgers.connect()
     yield this.routeBroadcaster.reloadLocalRoutes()
-    yield subscriptions.subscribePairs(this.ledgers.getCore(), this.config, this.routeBuilder, this.messageRouter, this.backend)
+    yield subscriptions.subscribePairs(this.ledgers.getCore(), this.config, this.routeBuilder, this.backend)
 
     this.setTimeout = setTimeout
     this.clock = sinon.useFakeTimers(START_DATE)

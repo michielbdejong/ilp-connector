@@ -134,29 +134,27 @@ class RouteBroadcaster {
       log.info('broadcasting ' + routes.length + ' routes to ' + account)
       let routesNewToConnector = routes.filter((route) => (route.added_during_epoch > (this.peerEpochs[account] || -1)))
       routesNewToConnector.forEach((r) => delete r.added_during_epoch)
-      const broadcastPromise = this.ledgers.getPlugin(adjacentLedger).sendMessage({
+      const broadcastPromise = this.ledgers.getPlugin(adjacentLedger).sendRequest({
         ledger: adjacentLedger,
-        account: account,
-        data: {
+        to: account,
+        custom: {
           method: 'broadcast_routes',
           data: {
             new_routes: routesNewToConnector,
             hold_down_time: this.holdDownTime,
             unreachable_through_me: unreachableLedgers
           }
-        }
-      })
-      // timeout the plugin.sendMessage Promise just so we don't have it hanging around forever
-      const timeoutPromise = new Promise((resolve, reject) => {
-        setTimeout(() => reject(new Error('route broadcast to ' + account + ' timed out')), this.routeBroadcastInterval)
+        },
+        // timeout the plugin.sendRequest Promise just so we don't have it hanging around forever
+        timeout: this.routeBroadcastInterval
       })
 
       // We are deliberately calling an async function synchronously because
       // we do not want to wait for the routes to be broadcasted before continuing.
-      // Even if there is an error sending a specific route or a sendMessage promise hangs,
+      // Even if there is an error sending a specific route or a sendRequest promise hangs,
       // we should continue sending the other broadcasts out
-      return Promise.race([broadcastPromise, timeoutPromise])
-        .then((val) => {
+      return broadcastPromise
+        .then(() => {
           this.peerEpochs[account] = this._currentEpoch()
         })
         .catch((err) => {

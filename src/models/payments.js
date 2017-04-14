@@ -83,6 +83,7 @@ function * processExecutionFulfillment (transfer, fulfillment, ledgers, backend)
 
 function * rejectIncomingTransfer (sourceTransfer, _rejectionMessage, ledgers) {
   const myAddress = ledgers.getPlugin(sourceTransfer.ledger).getAccount()
+  //TODO error packets
   const rejectionMessage = Object.assign({
     triggered_by: myAddress,
     triggered_at: (new Date()).toISOString(),
