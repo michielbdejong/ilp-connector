@@ -251,7 +251,8 @@ class RouteBroadcaster {
         [ connectorLedger, targetPrefix ],
         { minMessageWindow: this.minMessageWindow,
           sourceAccount: connector,
-          targetPrefix: targetPrefix }
+          targetPrefix: targetPrefix },
+        [ [] ]
       )
 
       // set the noExpire option to true when adding config routes
@@ -285,7 +286,8 @@ class RouteBroadcaster {
       min_message_window: this.minMessageWindow,
       source_account: sourcePlugin.getAccount(),
       destination_account: destinationPlugin.getAccount(),
-      points: curve.points
+      points: curve.points,
+      paths: [ [] ]
     }, this._currentEpoch())
   }
 }

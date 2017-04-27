@@ -132,8 +132,10 @@ MessageRouter.prototype.receiveRoutes = function * (payload, sender) {
   let gotNewRoute = false
   for (const route of routes) {
     // We received a route from another connector, but that connector
-    // doesn't actually belong to the route, so ignore it.
+    // doesn't actually appear as the first hop of the route, so ignore it.
     if (route.source_account !== sender) continue
+    // make sure source_account is on source_ledger:
+    if (!route.source_account.startsWith(route.source_ledger)) continue
     // The destination_ledger can be any ledger except one that starts with `peer.`.
     if (route.destination_ledger.startsWith(PEER_LEDGER_PREFIX)) continue
     if (this.routingTables.addRoute(route)) gotNewRoute = true
