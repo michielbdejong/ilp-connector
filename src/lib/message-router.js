@@ -28,6 +28,48 @@ function MessageRouter (opts) {
   this.balanceCache = opts.balanceCache
 }
 
+// MIGRATION CODE, PLEASE REMOVE LATER:
+function toScale (val, orders, asString) {
+  let num = val
+  if (asString) {
+    num = parseFloat(val)
+  }
+  if (isNaN(num)) {
+    return val
+  }
+  num *= Math.pow(10, orders)
+  if (orders > 0) {
+    num = Math.round(num)
+  }
+  return (asString ? '' + num : num)
+}
+
+// MIGRATION CODE, PLEASE REMOVE LATER:
+function scale (obj, orders) {
+  if (typeof orders !== 'number') {
+    return obj
+  }
+
+  const scaled = Object.assign({}, obj)
+  if (scaled.new_routes) {
+    for (let route of scaled.new_routes) {
+      for (let point of route.points) {
+        point[0] *= toScale(point[0], orders, false)
+        point[1] *= toScale(point[1], orders, false)
+        console.log('scaled point', point)
+      }
+    }
+  }
+  if (scaled.data) {
+    if (scaled.data.source_amount) {
+      scaled.data.source_amount = toScale(scaled.data.source_amount, orders, true)
+      scaled.data.destination_amount = toScale(scaled.data.destination_amount, orders, true)
+      console.log('scaled data', scaled.data)
+    }
+  }
+  return scaled
+}
+
 /**
  * Process an incoming message, and send a response message (if applicable) back to the sender.
  *
@@ -36,14 +78,22 @@ function MessageRouter (opts) {
  */
 MessageRouter.prototype.handleMessage = function (message) {
   if (!message.data) return Promise.resolve(null)
-  return this.handleRequest(message.data, message.from).then(
+
+  // MIGRATION CODE, PLEASE REMOVE LATER:
+  let ledgerScale
+  if (message.ledger.startsWith('peer.') {
+    ledgerScale = this.ledgers.getPlugin(message.ledger).getInfo().currencyScale
+    console.log('scaling message', message, ledgerScale)
+  }
+
+  return this.handleRequest(scale(message.data, ledgerScale), message.from).then(
     (responseData) => {
       if (!responseData) return
       return this.ledgers.getPlugin(message.ledger).sendMessage({
         ledger: message.ledger,
         from: message.to,
         to: message.from,
-        data: responseData
+        data: scale(responseData, -ledgerScale)
       })
     })
 }
